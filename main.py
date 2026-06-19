@@ -117,20 +117,24 @@ filtered_data = apply_filters(data, filter_params)
 st.session_state.filtered_data = filtered_data
 
 st.subheader("📊 数据概览")
-metric_col1, metric_col2, metric_col3, metric_col4, metric_col5 = st.columns(5)
-with metric_col1:
-    st.metric("总场次", f"{len(filtered_data['session_name'].unique())}")
-with metric_col2:
-    st.metric("总桌数", f"{len(filtered_data['table_no'].unique())}")
-with metric_col3:
-    avg_wait = filtered_data["wait_minutes"].mean() if "wait_minutes" in filtered_data else 0
-    st.metric("平均等待时间", f"{avg_wait:.1f} 分钟")
-with metric_col4:
-    total_refill = filtered_data["refill_count"].sum() if "refill_count" in filtered_data else 0
-    st.metric("总续水次数", f"{int(total_refill)}")
-with metric_col5:
-    anomaly_count = filtered_data["is_anomaly"].sum() if "is_anomaly" in filtered_data else 0
-    st.metric("异常等待", f"{int(anomaly_count)} 次", delta_color="inverse")
+
+if len(filtered_data) == 0:
+    st.warning("⚠️ 当前筛选条件下无匹配数据，请调整筛选条件")
+else:
+    metric_col1, metric_col2, metric_col3, metric_col4, metric_col5 = st.columns(5)
+    with metric_col1:
+        st.metric("总场次", f"{len(filtered_data['session_name'].unique())}")
+    with metric_col2:
+        st.metric("总桌数", f"{len(filtered_data['table_no'].unique())}")
+    with metric_col3:
+        avg_wait = filtered_data["wait_minutes"].mean() if "wait_minutes" in filtered_data else 0
+        st.metric("平均等待时间", f"{avg_wait:.1f} 分钟")
+    with metric_col4:
+        total_refill = filtered_data["refill_count"].sum() if "refill_count" in filtered_data else 0
+        st.metric("总续水次数", f"{int(total_refill)}")
+    with metric_col5:
+        anomaly_count = filtered_data["is_anomaly"].sum() if "is_anomaly" in filtered_data else 0
+        st.metric("异常等待", f"{int(anomaly_count)} 次", delta_color="inverse")
 
 st.markdown("---")
 
@@ -200,50 +204,82 @@ with tab4:
 
     st.markdown("""
     基于当前筛选条件生成服务复盘摘要，报告涵盖核心指标概览、异常归因、多维度对比、趋势解读和优化建议。
-    更改左侧筛选条件后，点击「生成报告」即可刷新。
+    修改左侧筛选条件后，报告将自动刷新。
     """)
 
     filter_summary_parts = []
-    if "record_date" in filtered_data.columns:
-        d_min = filtered_data["record_date"].min()
-        d_max = filtered_data["record_date"].max()
-        filter_summary_parts.append(f"日期: {d_min} ~ {d_max}")
-    if "session_name" in filtered_data.columns:
-        sessions = filtered_data["session_name"].unique()
-        filter_summary_parts.append(f"场次: {', '.join(sorted(sessions.astype(str)))}")
-    if "table_no" in filtered_data.columns:
-        tables = filtered_data["table_no"].unique()
-        filter_summary_parts.append(f"桌号: {', '.join(sorted(tables.astype(str)))}")
-    if "helper_name" in filtered_data.columns:
-        helpers = filtered_data["helper_name"].dropna().unique()
-        non_empty = [h for h in helpers.astype(str) if h.strip()]
-        if non_empty:
-            filter_summary_parts.append(f"助理: {', '.join(sorted(non_empty))}")
-    if "is_anomaly" in filtered_data.columns:
-        anomaly_vals = filtered_data["is_anomaly"].unique()
-        if set(anomaly_vals) == {True}:
-            filter_summary_parts.append("异常状态: 仅异常")
-        elif set(anomaly_vals) == {False}:
-            filter_summary_parts.append("异常状态: 仅正常")
+    if "record_date" in data.columns and len(data["record_date"].dropna()) > 0:
+        all_dates = sorted(data["record_date"].dropna().unique())
+        if "date_range" in filter_params:
+            start_d, end_d = filter_params["date_range"]
+            if start_d == all_dates[0] and end_d == all_dates[-1]:
+                filter_summary_parts.append(f"日期: 全部 ({all_dates[0]} ~ {all_dates[-1]})")
+            else:
+                filter_summary_parts.append(f"日期: {start_d} ~ {end_d}")
+        else:
+            filter_summary_parts.append(f"日期: {all_dates[0]} ~ {all_dates[-1]}")
 
-    st.info(f"🔍 当前筛选范围 — {' | '.join(filter_summary_parts)} | 共 {len(filtered_data)} 条记录")
+    if "session_name" in data.columns:
+        all_sessions = sorted(data["session_name"].dropna().astype(str).unique())
+        if "sessions" in filter_params:
+            sel = sorted(filter_params["sessions"])
+            if len(sel) == 0:
+                filter_summary_parts.append("场次: 未选择")
+            elif len(sel) == len(all_sessions):
+                filter_summary_parts.append(f"场次: 全部 ({len(all_sessions)} 场)")
+            else:
+                filter_summary_parts.append(f"场次: {', '.join(sel)}")
+        else:
+            filter_summary_parts.append(f"场次: 全部 ({len(all_sessions)} 场)")
 
-    generate_col1, generate_col2 = st.columns([1, 4])
-    with generate_col1:
-        generate_btn = st.button("📝 生成报告", type="primary", key="generate_report_btn")
-    with generate_col2:
-        pass
+    if "table_no" in data.columns:
+        all_tables = sorted(data["table_no"].dropna().astype(str).unique())
+        if "tables" in filter_params:
+            sel = sorted(filter_params["tables"])
+            if len(sel) == 0:
+                filter_summary_parts.append("桌号: 未选择")
+            elif len(sel) == len(all_tables):
+                filter_summary_parts.append(f"桌号: 全部 ({len(all_tables)} 桌)")
+            else:
+                filter_summary_parts.append(f"桌号: {', '.join(sel)}")
+        else:
+            filter_summary_parts.append(f"桌号: 全部 ({len(all_tables)} 桌)")
 
-    if generate_btn or st.session_state.get("report_generated", False):
-        if generate_btn:
-            st.session_state.report_generated = True
+    if "helper_name" in data.columns:
+        all_helpers = sorted([h for h in data["helper_name"].dropna().astype(str).unique() if h.strip()])
+        if "helpers" in filter_params:
+            sel = sorted(filter_params["helpers"])
+            if len(sel) == 0:
+                filter_summary_parts.append("助理: 未选择")
+            elif len(sel) == len(all_helpers):
+                filter_summary_parts.append(f"助理: 全部 ({len(all_helpers)} 人)")
+            else:
+                filter_summary_parts.append(f"助理: {', '.join(sel)}")
+        elif len(all_helpers) > 0:
+            filter_summary_parts.append(f"助理: 全部 ({len(all_helpers)} 人)")
+
+    if "is_anomaly" in data.columns:
+        if "anomaly" in filter_params:
+            anomaly_filter = filter_params["anomaly"]
+            if anomaly_filter == "全部":
+                filter_summary_parts.append("异常状态: 全部")
+            elif anomaly_filter == "仅异常":
+                filter_summary_parts.append("异常状态: 仅异常")
+            else:
+                filter_summary_parts.append("异常状态: 仅正常")
+        else:
+            filter_summary_parts.append("异常状态: 全部")
+
+    if len(filtered_data) == 0:
+        st.warning("⚠️ 当前筛选条件下无匹配数据，请调整筛选条件后重试")
+    else:
+        st.info(f"🔍 当前筛选范围 — {' | '.join(filter_summary_parts)} | 共 {len(filtered_data)} 条记录")
 
         with st.spinner("正在生成服务复盘报告..."):
             report = generate_report_summary(filtered_data, data)
 
         if report is None:
-            st.warning("⚠️ 当前筛选范围内无数据，无法生成报告")
-            st.session_state.report_generated = False
+            st.warning("⚠️ 当前筛选范围内无有效数据，无法生成报告")
         else:
             st.session_state.current_report = report
 
@@ -405,15 +441,16 @@ with tab4:
             st.markdown("## 📥 导出报告")
             export_col1, export_col2 = st.columns([1, 4])
             with export_col1:
-                if st.button("📥 导出完整报告 (Excel)", type="primary", key="export_report_btn"):
-                    try:
-                        excel_output = export_report_excel(report)
-                        st.download_button(
-                            label="⬇️ 下载复盘报告 Excel",
-                            data=excel_output,
-                            file_name=f"服务复盘报告_{pd.Timestamp.now().strftime('%Y%m%d_%H%M')}.xlsx",
-                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                            key="download_report_excel"
-                        )
-                    except Exception as e:
-                        st.error(f"❌ 导出失败: {str(e)}")
+                try:
+                    excel_output = export_report_excel(report)
+                    st.download_button(
+                        label="📥 导出完整报告 (Excel)",
+                        data=excel_output,
+                        file_name=f"服务复盘报告_{pd.Timestamp.now().strftime('%Y%m%d_%H%M')}.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        key="download_report_excel",
+                        type="primary",
+                        use_container_width=True
+                    )
+                except Exception as e:
+                    st.error(f"❌ 导出失败: {str(e)}")

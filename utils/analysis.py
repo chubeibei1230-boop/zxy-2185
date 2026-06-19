@@ -10,24 +10,24 @@ def _has_col(df, col):
 def generate_service_suggestions(filtered_df, full_df):
     st.subheader("💡 服务节奏建议")
 
-    if full_df is None or len(full_df) == 0:
-        st.info("📋 暂无数据可分析")
+    if filtered_df is None or len(filtered_df) == 0:
+        st.info("📋 筛选后暂无数据，无法生成建议")
         return
 
     try:
-        full_df_copy = full_df.copy()
-        full_df_copy["record_date"] = pd.to_datetime(full_df_copy["record_date"])
+        filtered_df_copy = filtered_df.copy()
+        filtered_df_copy["record_date"] = pd.to_datetime(filtered_df_copy["record_date"])
 
-        max_date = full_df_copy["record_date"].max()
+        max_date = filtered_df_copy["record_date"].max()
         if pd.isna(max_date):
             st.info("📋 暂无有效日期数据")
             return
 
         fourteen_days_ago = max_date - pd.Timedelta(days=13)
-        recent_df = full_df_copy[full_df_copy["record_date"] >= fourteen_days_ago]
+        recent_df = filtered_df_copy[filtered_df_copy["record_date"] >= fourteen_days_ago]
 
         if len(recent_df) == 0:
-            st.info("📋 近14天暂无数据，无法生成建议")
+            st.info("📋 筛选后近14天暂无数据，无法生成建议")
             return
 
         col1, col2 = st.columns(2)

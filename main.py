@@ -30,6 +30,8 @@ if "field_mapping" not in st.session_state:
     st.session_state.field_mapping = {}
 if "date_format" not in st.session_state:
     st.session_state.date_format = "YYYY-MM-DD"
+if "filter_reset" not in st.session_state:
+    st.session_state.filter_reset = False
 
 with st.sidebar:
     st.header("📁 数据上传")

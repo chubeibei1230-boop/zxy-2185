@@ -75,18 +75,21 @@ def validate_required_fields(df):
                 errors.append(f"有 {na_count} 条记录的日期无法解析")
 
     if "prep_minutes" in df.columns and df["prep_minutes"].notna().any():
-        non_numeric = pd.to_numeric(df["prep_minutes"], errors="coerce").isna().sum()
-        if non_numeric > 0 and non_numeric < len(df):
+        non_empty = df[df["prep_minutes"].notna()]["prep_minutes"]
+        non_numeric = pd.to_numeric(non_empty, errors="coerce").isna().sum()
+        if non_numeric > 0:
             errors.append(f"准备时间字段有 {non_numeric} 条非数值数据")
 
     if "wait_minutes" in df.columns and df["wait_minutes"].notna().any():
-        non_numeric = pd.to_numeric(df["wait_minutes"], errors="coerce").isna().sum()
-        if non_numeric > 0 and non_numeric < len(df):
+        non_empty = df[df["wait_minutes"].notna()]["wait_minutes"]
+        non_numeric = pd.to_numeric(non_empty, errors="coerce").isna().sum()
+        if non_numeric > 0:
             errors.append(f"等待时间字段有 {non_numeric} 条非数值数据")
 
     if "refill_count" in df.columns and df["refill_count"].notna().any():
-        non_numeric = pd.to_numeric(df["refill_count"], errors="coerce").isna().sum()
-        if non_numeric > 0 and non_numeric < len(df):
+        non_empty = df[df["refill_count"].notna()]["refill_count"]
+        non_numeric = pd.to_numeric(non_empty, errors="coerce").isna().sum()
+        if non_numeric > 0:
             errors.append(f"续水次数字段有 {non_numeric} 条非数值数据")
 
     return errors
